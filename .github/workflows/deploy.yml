@@ -10,8 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # Pre-deployment Validation
+      - name: Validate Project Files
+        run: |
+          echo "Checking required files..."
+          test -f index.html
+          test -f style.css
+          echo "Validation Successful"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -20,12 +29,14 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+
           script: |
+
             echo "Connected to EC2"
 
             cd /tmp
 
-            if [ -d "automated-cicd-pipeline" ]; then
+            if [ -d automated-cicd-pipeline ]; then
               cd automated-cicd-pipeline
               git pull origin main
             else
@@ -33,9 +44,26 @@ jobs:
               cd automated-cicd-pipeline
             fi
 
-            sudo rm -rf /var/www/html/*
-            sudo cp -r . /var/www/html/
-            sudo chmod -R 755 /var/www/html/
+            echo "Deploying Website..."
+
+            sudo mkdir -p /var/www/html
+
+            sudo cp index.html /var/www/html/
+            sudo cp about.html /var/www/html/
+            sudo cp contact.html /var/www/html/
+            sudo cp style.css /var/www/html/
+            sudo cp script.js /var/www/html/
+
+            if [ -d images ]; then
+              sudo cp -r images /var/www/html/
+            fi
+
+            sudo find /var/www/html -type d -exec chmod 755 {} \;
+            sudo find /var/www/html -type f -exec chmod 644 {} \;
+
             sudo systemctl restart apache2
 
-            echo "Deployment Successful!"
+            echo "Checking Apache Status..."
+            sudo systemctl status apache2 --no-pager
+
+            echo "Deployment Successful"
