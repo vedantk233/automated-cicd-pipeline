@@ -11,18 +11,22 @@ jobs:
 
     steps:
 
+      # Checkout Repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Pre-deployment Validation
+      # Pre Deployment Validation
       - name: Validate Project Files
         run: |
           echo "Checking required files..."
           test -f index.html
           test -f style.css
-          echo "Validation Successful"
+          test -f about.html
+          test -f contact.html
+          echo "All required files found."
 
-      - name: Deploy to EC2
+      # Deploy
+      - name: Deploy to AWS EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -37,33 +41,39 @@ jobs:
             cd /tmp
 
             if [ -d automated-cicd-pipeline ]; then
-              cd automated-cicd-pipeline
-              git pull origin main
+                cd automated-cicd-pipeline
+                git pull origin main
             else
-              git clone https://github.com/vedantk233/automated-cicd-pipeline.git
-              cd automated-cicd-pipeline
+                git clone https://github.com/vedantk233/automated-cicd-pipeline.git
+                cd automated-cicd-pipeline
             fi
 
-            echo "Deploying Website..."
+            echo "Preparing deployment..."
 
-            sudo mkdir -p /var/www/html
+            sudo mkdir -p /tmp/new-site
 
-            sudo cp index.html /var/www/html/
-            sudo cp about.html /var/www/html/
-            sudo cp contact.html /var/www/html/
-            sudo cp style.css /var/www/html/
-            sudo cp script.js /var/www/html/
+            sudo cp index.html /tmp/new-site/
+            sudo cp about.html /tmp/new-site/
+            sudo cp contact.html /tmp/new-site/
+            sudo cp style.css /tmp/new-site/
+            sudo cp script.js /tmp/new-site/
 
             if [ -d images ]; then
-              sudo cp -r images /var/www/html/
+              sudo cp -r images /tmp/new-site/
             fi
+
+            echo "Replacing website..."
+
+            sudo rm -rf /var/www/html/*
+            sudo cp -r /tmp/new-site/* /var/www/html/
 
             sudo find /var/www/html -type d -exec chmod 755 {} \;
             sudo find /var/www/html -type f -exec chmod 644 {} \;
 
             sudo systemctl restart apache2
 
-            echo "Checking Apache Status..."
-            sudo systemctl status apache2 --no-pager
+            echo "Verifying Website..."
 
-            echo "Deployment Successful"
+            curl -I http://localhost
+
+            echo "Deployment Completed Successfully"
