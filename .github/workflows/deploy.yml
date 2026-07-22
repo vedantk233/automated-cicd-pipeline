@@ -25,7 +25,7 @@ jobs:
           test -f contact.html
           echo "All required files found."
 
-      # Deploy
+      # Deploy to EC2
       - name: Deploy to AWS EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -36,7 +36,7 @@ jobs:
 
           script: |
 
-            echo "Connected to EC2"
+            echo " Connected to EC2"
 
             cd /tmp
 
@@ -48,32 +48,43 @@ jobs:
                 cd automated-cicd-pipeline
             fi
 
-            echo "Preparing deployment..."
+            echo " Preparing deployment..."
 
+            sudo rm -rf /tmp/new-site
             sudo mkdir -p /tmp/new-site
 
+            # Required files
             sudo cp index.html /tmp/new-site/
             sudo cp about.html /tmp/new-site/
             sudo cp contact.html /tmp/new-site/
             sudo cp style.css /tmp/new-site/
-            sudo cp script.js /tmp/new-site/
 
+            # Copy JS only if available
+            if [ -f script.js ]; then
+              sudo cp script.js /tmp/new-site/
+            fi
+
+            # Copy images folder only if available
             if [ -d images ]; then
               sudo cp -r images /tmp/new-site/
             fi
 
-            echo "Replacing website..."
+            echo " Replacing website..."
 
             sudo rm -rf /var/www/html/*
             sudo cp -r /tmp/new-site/* /var/www/html/
 
+            echo " Setting permissions..."
+
             sudo find /var/www/html -type d -exec chmod 755 {} \;
             sudo find /var/www/html -type f -exec chmod 644 {} \;
 
+            echo " Restarting Apache..."
+
             sudo systemctl restart apache2
 
-            echo "Verifying Website..."
+            echo " Verifying Website..."
 
             curl -I http://localhost
 
-            echo "Deployment Completed Successfully"
+            echo " Deployment Completed Successfully!"
